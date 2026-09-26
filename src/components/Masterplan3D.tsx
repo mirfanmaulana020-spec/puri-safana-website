@@ -273,6 +273,8 @@ export default function Masterplan3D() {
         {pin.blok.map(([name, x, y]) => (
           <div key={name} className="mp-pin" style={{ left: x, top: y }}>
             <div className="mp-lbl">{name}</div>
+            <i />
+            <u />
           </div>
         ))}
       </div>

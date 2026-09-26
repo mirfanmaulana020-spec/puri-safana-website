@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 
 const links = [
@@ -17,6 +18,11 @@ const links = [
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
+  const pathname = usePathname();
+
+  // Halaman site plan tampil full-screen dengan nav sendiri (mp-nav),
+  // jadi navbar utama situs disembunyikan di sini agar tidak menutupinya.
+  if (pathname === "/site-plan") return null;
 
   return (
     <header className="sticky top-0 z-50 bg-[#1c2317]/95 backdrop-blur text-white border-b border-white/10">
