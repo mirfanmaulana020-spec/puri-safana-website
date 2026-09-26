@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Icon from "./Icon";
 import type { DataPeta, Masterplan, Mode } from "@/lib/scene3d";
 import { pilihMutu } from "@/lib/scene3d";
@@ -149,6 +149,35 @@ export default function Masterplan3D() {
     peta.current?.pilih(k);
   }, []);
 
+  // Cegah label numpuk/tabrakan saat banyak pin berdekatan (zoom jauh):
+  // hanya tampilkan label yang kotaknya tidak bertumpuk dengan label lain
+  // yang sudah "menang" duluan; pin lain tetap tampil sebagai titik saja.
+  const labelTampil = useMemo(() => {
+    type Kotak = { x1: number; y1: number; x2: number; y2: number };
+    const dipakai: Kotak[] = [];
+    const visible = new Set<string>();
+    const TINGGI = 24;
+    const JARAK = 6;
+    for (const [name, x, y] of pin.blok) {
+      const lebar = 20 + name.length * 6.5;
+      const cy = y - 42;
+      const kotak: Kotak = {
+        x1: x - lebar / 2 - JARAK,
+        x2: x + lebar / 2 + JARAK,
+        y1: cy - TINGGI / 2 - JARAK / 2,
+        y2: cy + TINGGI / 2 + JARAK / 2,
+      };
+      const tabrakan = dipakai.some(
+        (b) => kotak.x1 < b.x2 && kotak.x2 > b.x1 && kotak.y1 < b.y2 && kotak.y2 > b.y1
+      );
+      if (!tabrakan || kode === name) {
+        dipakai.push(kotak);
+        visible.add(name);
+      }
+    }
+    return visible;
+  }, [pin.blok, kode]);
+
   const info = kode ? infoMap[kode] : null;
 
   return (
@@ -272,7 +301,7 @@ export default function Masterplan3D() {
       <div className="mp-labels">
         {pin.blok.map(([name, x, y]) => (
           <div key={name} className="mp-pin" style={{ left: x, top: y }}>
-            <div className="mp-lbl">{name}</div>
+            {labelTampil.has(name) && <div className="mp-lbl">{name}</div>}
             <i />
             <u />
           </div>
