@@ -1,0 +1,62 @@
+import { rukoList, statusColor, statusLabel } from "@/lib/data";
+
+export const metadata = { title: "Ruko | Puri Safana Cikeas" };
+
+export default function RukoPage() {
+  return (
+    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
+      <p className="text-[#557a1f] text-sm uppercase tracking-wide mb-2">Komersial</p>
+      <h1 className="text-3xl md:text-4xl font-bold mb-2">Ruko Puri Safana Cikeas</h1>
+      <p className="text-black/60 mb-8 max-w-2xl">
+        Unit ruko 2 lantai untuk peluang usaha di lokasi strategis dalam kawasan hunian
+        yang terus berkembang.
+      </p>
+
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {rukoList.map((r) => (
+          <div key={r.code} className="rounded-2xl border border-black/10 bg-white p-6">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-lg font-semibold">{r.code}</div>
+              <span
+                className="text-xs font-medium px-2.5 py-1 rounded-full"
+                style={{ backgroundColor: `${statusColor[r.status]}22`, color: statusColor[r.status] }}
+              >
+                {statusLabel[r.status]}
+              </span>
+            </div>
+            <div className="text-sm text-black/60 mb-4">Blok {r.block} · {r.floors} Lantai</div>
+            <div className="grid grid-cols-2 gap-3 text-sm mb-4">
+              <div>
+                <div className="text-black/50 text-xs">Luas Tanah</div>
+                <div className="font-medium">{r.landArea} m²</div>
+              </div>
+              <div>
+                <div className="text-black/50 text-xs">Luas Bangunan</div>
+                <div className="font-medium">{r.buildingArea} m²</div>
+              </div>
+            </div>
+            <div className="text-lg font-bold mb-4">
+              Rp {(r.price / 1_000_000).toLocaleString("id-ID")} Jt
+            </div>
+            {r.status !== "terjual" ? (
+              <a
+                href={`https://wa.me/6285117803838?text=${encodeURIComponent(
+                  `Halo, saya tertarik dengan ruko ${r.code} di Puri Safana Cikeas.`
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block text-center rounded-full bg-[#a3d139] text-[#1c2317] font-semibold text-sm py-2 hover:bg-[#b6e34f]"
+              >
+                Tanya Unit Ini
+              </a>
+            ) : (
+              <div className="text-center rounded-full bg-black/5 text-black/40 text-sm py-2">
+                Sudah Terjual
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,713 @@
+"use client";
+
+import Image from "next/image";
+import * as THREE from "three";
+import { Suspense, useMemo, useState } from "react";
+import { Canvas, ThreeEvent } from "@react-three/fiber";
+import { OrbitControls, Text, ContactShadows } from "@react-three/drei";
+import {
+  blocks,
+  units,
+  houseTypes,
+  facilities,
+  rukoList,
+  statusColor,
+  statusLabel,
+  type Unit,
+  type UnitStatus,
+  type Facility,
+  type Ruko,
+} from "@/lib/data";
+
+type ViewMode = "status" | "progress";
+
+function progressColor(pct: number): string {
+  if (pct >= 100) return "#4a8f3c";
+  if (pct <= 0) return "#c0574a";
+  const stops: [number, string][] = [
+    [0, "#c0574a"],
+    [50, "#e0b04c"],
+    [100, "#4a8f3c"],
+  ];
+  for (let i = 0; i < stops.length - 1; i++) {
+    const [p0, c0] = stops[i];
+    const [p1, c1] = stops[i + 1];
+    if (pct >= p0 && pct <= p1) {
+      const t = (pct - p0) / (p1 - p0);
+      return lerpColor(c0, c1, t);
+    }
+  }
+  return "#8bc34a";
+}
+
+function lerpColor(a: string, b: string, t: number): string {
+  const pa = hexToRgb(a);
+  const pb = hexToRgb(b);
+  const r = Math.round(pa.r + (pb.r - pa.r) * t);
+  const g = Math.round(pa.g + (pb.g - pa.g) * t);
+  const bl = Math.round(pa.b + (pb.b - pa.b) * t);
+  return `rgb(${r},${g},${bl})`;
+}
+
+function hexToRgb(hex: string) {
+  const h = hex.replace("#", "");
+  return {
+    r: parseInt(h.substring(0, 2), 16),
+    g: parseInt(h.substring(2, 4), 16),
+    b: parseInt(h.substring(4, 6), 16),
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* Geometri rumah bergaya arsitektural: pondasi, dinding, atap pelana  */
+/* (dibangun sekali di module scope, dipakai ulang oleh semua unit)    */
+/* ------------------------------------------------------------------ */
+
+const FOOT = 1.28; // lebar & dalam dasar rumah
+const WALL_H1 = 0.52; // tinggi lantai 1
+const WALL_H2 = 0.42; // tinggi lantai 2 (rumah 2 lantai)
+const ROOF_H = 0.34; // tinggi puncak atap dari atas dinding
+const OV = 0.12; // tritisan atap
+
+function buildGable(width: number, height: number, depth: number) {
+  const s = new THREE.Shape();
+  s.moveTo(-width / 2, 0);
+  s.lineTo(width / 2, 0);
+  s.lineTo(0, height);
+  s.lineTo(-width / 2, 0);
+  const geo = new THREE.ExtrudeGeometry(s, { depth, bevelEnabled: false });
+  geo.translate(0, 0, -depth / 2);
+  return geo;
+}
+
+const plinthGeo = new THREE.BoxGeometry(FOOT + 0.06, 0.07, FOOT + 0.06);
+const wall1Geo = new THREE.BoxGeometry(FOOT, WALL_H1, FOOT);
+const wall2Geo = new THREE.BoxGeometry(FOOT * 0.86, WALL_H2, FOOT * 0.86);
+const gableGeo = buildGable(FOOT, ROOF_H, FOOT);
+const ridgeGeo = new THREE.BoxGeometry(0.05, 0.05, FOOT + OV * 2);
+const rukoGeo = new THREE.BoxGeometry(0.56, 1.05, 0.62);
+
+// perhitungan kemiringan atap (dua bidang simetris, sesuai render arsitek asli)
+const RUN = FOOT / 2 + OV;
+const SLOPE_RATIO = ROOF_H / (FOOT / 2);
+const RISE = SLOPE_RATIO * RUN;
+const SLOPE_LEN = Math.hypot(RUN, RISE);
+const TILT = Math.atan(SLOPE_RATIO);
+const roofSlabGeo = new THREE.BoxGeometry(SLOPE_LEN, 0.045, FOOT + OV * 2);
+const CX_OFFSET = (FOOT / 2 + OV) / 2;
+
+const wallMat = new THREE.MeshStandardMaterial({ color: "#eeebe4", roughness: 0.85 });
+const plinthMat = new THREE.MeshStandardMaterial({ color: "#8f8a80", roughness: 0.9 });
+const ROOF_PALETTE = ["#3b3e42", "#44474b", "#4c4640", "#3e4347", "#55504a"];
+const roofMatCache: Record<string, THREE.MeshStandardMaterial> = {};
+function roofMat(color: string) {
+  return (roofMatCache[color] ??= new THREE.MeshStandardMaterial({ color, roughness: 0.75 }));
+}
+
+interface HouseMeshProps {
+  unit: Unit;
+  onSelect: (unit: Unit) => void;
+  selected: boolean;
+  viewMode: ViewMode;
+}
+
+function HouseMesh({ unit, onSelect, selected, viewMode }: HouseMeshProps) {
+  const singleStory = unit.typeSlug === "ansara";
+  const wallTop = singleStory ? WALL_H1 : WALL_H1 + WALL_H2;
+  const roofColor =
+    viewMode === "progress"
+      ? progressColor(unit.progress)
+      : ROOF_PALETTE[(unit.code.length * 7 + unit.code.charCodeAt(unit.code.length - 1)) % ROOF_PALETTE.length];
+  const stripColor = viewMode === "status" ? statusColor[unit.status] : progressColor(unit.progress);
+  const roofY = wallTop + ROOF_H - RISE / 2;
+
+  const handleClick = (e: ThreeEvent<MouseEvent>) => {
+    e.stopPropagation();
+    onSelect(unit);
+  };
+
+  return (
+    <group position={[unit.x, 0, unit.z]} rotation={[0, (unit.rot * Math.PI) / 180, 0]}>
+      {/* hit target transparan, mencakup seluruh silhouette rumah */}
+      <mesh
+        position={[0, (wallTop + ROOF_H) / 2, 0]}
+        onClick={handleClick}
+        onPointerOver={(e) => {
+          e.stopPropagation();
+          document.body.style.cursor = "pointer";
+        }}
+        onPointerOut={() => {
+          document.body.style.cursor = "default";
+        }}
+      >
+        <boxGeometry args={[FOOT * 1.15, wallTop + ROOF_H + 0.1, FOOT * 1.15]} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+      </mesh>
+
+      <mesh geometry={plinthGeo} position={[0, 0.035, 0]} material={plinthMat} receiveShadow />
+      <mesh geometry={wall1Geo} position={[0, WALL_H1 / 2 + 0.07, 0]} material={wallMat} castShadow receiveShadow />
+      {!singleStory && (
+        <mesh
+          geometry={wall2Geo}
+          position={[0, WALL_H1 + WALL_H2 / 2 + 0.07, 0]}
+          material={wallMat}
+          castShadow
+          receiveShadow
+        />
+      )}
+      <mesh geometry={gableGeo} position={[0, wallTop + 0.07, 0]} material={wallMat} castShadow />
+      <mesh
+        geometry={roofSlabGeo}
+        position={[-CX_OFFSET, roofY + 0.07, 0]}
+        rotation={[0, 0, TILT]}
+        material={roofMat(roofColor)}
+        castShadow
+      />
+      <mesh
+        geometry={roofSlabGeo}
+        position={[CX_OFFSET, roofY + 0.07, 0]}
+        rotation={[0, 0, -TILT]}
+        material={roofMat(roofColor)}
+        castShadow
+      />
+      <mesh geometry={ridgeGeo} position={[0, wallTop + ROOF_H + 0.1, 0]} material={roofMat(roofColor)} />
+
+      {/* carport / strip depan, warna sesuai status atau progres */}
+      <mesh position={[0, 0.012, FOOT / 2 + 0.24]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[FOOT * 0.88, 0.34]} />
+        <meshStandardMaterial color={stripColor} roughness={0.95} />
+      </mesh>
+
+      {selected && (
+        <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[FOOT * 0.62, FOOT * 0.78, 32]} />
+          <meshBasicMaterial color="#a3d139" />
+        </mesh>
+      )}
+    </group>
+  );
+}
+
+const RUKO_FACADE = ["#1c2748", "#d8cdbb", "#6b4a3a"];
+
+function RukoMesh({
+  ruko,
+  index,
+  onSelect,
+  selected,
+}: {
+  ruko: Ruko;
+  index: number;
+  onSelect: (r: Ruko) => void;
+  selected: boolean;
+}) {
+  const facade = RUKO_FACADE[index % RUKO_FACADE.length];
+  const height = ruko.floors * 0.85;
+
+  return (
+    <group position={[ruko.x, 0, ruko.z]} rotation={[0, (ruko.rot * Math.PI) / 180, 0]}>
+      <mesh
+        position={[0, height / 2, 0]}
+        onClick={(e) => {
+          e.stopPropagation();
+          onSelect(ruko);
+        }}
+        onPointerOver={(e) => {
+          e.stopPropagation();
+          document.body.style.cursor = "pointer";
+        }}
+        onPointerOut={() => {
+          document.body.style.cursor = "default";
+        }}
+        castShadow
+        receiveShadow
+      >
+        <boxGeometry args={[0.56, height, 0.62]} />
+        <meshStandardMaterial
+          color={facade}
+          emissive={selected ? "#a3d139" : "#000000"}
+          emissiveIntensity={selected ? 0.6 : 0}
+        />
+      </mesh>
+      <mesh position={[0, 0.32, 0.32]}>
+        <planeGeometry args={[0.4, 0.42]} />
+        <meshStandardMaterial color="#bcd6e8" metalness={0.2} roughness={0.15} />
+      </mesh>
+      <mesh position={[0, height + 0.03, 0]}>
+        <boxGeometry args={[0.56, 0.06, 0.62]} />
+        <meshStandardMaterial color={statusColor[ruko.status]} />
+      </mesh>
+    </group>
+  );
+}
+
+function RukoBlockLabel({ code, position }: { code: string; position: [number, number, number] }) {
+  return (
+    <Text position={position} fontSize={0.42} color="#1c2317" anchorX="center" anchorY="bottom" outlineWidth={0.02} outlineColor="#ffffff">
+      Ruko {code}
+    </Text>
+  );
+}
+
+function FacilityMesh({
+  facility,
+  onSelect,
+  selected,
+}: {
+  facility: Facility;
+  onSelect: (f: Facility) => void;
+  selected: boolean;
+}) {
+  const height = 0.7 + facility.size * 0.3;
+  return (
+    <group position={[facility.x, 0, facility.z]}>
+      <mesh
+        position={[0, height / 2, 0]}
+        onClick={(e) => {
+          e.stopPropagation();
+          onSelect(facility);
+        }}
+        onPointerOver={(e) => {
+          e.stopPropagation();
+          document.body.style.cursor = "pointer";
+        }}
+        onPointerOut={() => {
+          document.body.style.cursor = "default";
+        }}
+        castShadow
+        receiveShadow
+      >
+        <boxGeometry args={[facility.size, height, facility.size]} />
+        <meshStandardMaterial
+          color="#3d6b8f"
+          emissive={selected ? "#a3d139" : "#000000"}
+          emissiveIntensity={selected ? 0.5 : 0}
+        />
+      </mesh>
+      <Text position={[0, height + 0.3, 0]} fontSize={0.4} color="#1c2317" anchorX="center" anchorY="bottom" outlineWidth={0.02} outlineColor="#ffffff">
+        {facility.name}
+      </Text>
+    </group>
+  );
+}
+
+function BlockLabel({ code, position }: { code: string; position: [number, number, number] }) {
+  return (
+    <Text position={position} fontSize={0.46} color="#1c2317" anchorX="center" anchorY="bottom" outlineWidth={0.025} outlineColor="#ffffff">
+      {code}
+    </Text>
+  );
+}
+
+const treeTrunkMat = new THREE.MeshStandardMaterial({ color: "#5b4a37", roughness: 1 });
+const treeCanopyPalette = ["#2e4724", "#36522a", "#3f5d2f", "#2a3f21", "#47653a"];
+
+function Tree({ position, scale }: { position: [number, number, number]; scale: number }) {
+  const canopyColor = useMemo(
+    () => treeCanopyPalette[Math.floor(Math.random() * treeCanopyPalette.length)],
+    []
+  );
+  return (
+    <group position={position} scale={scale}>
+      <mesh position={[0, 0.5, 0]} material={treeTrunkMat} castShadow>
+        <cylinderGeometry args={[0.05, 0.09, 1, 6]} />
+      </mesh>
+      <mesh position={[0, 1.15, 0]} castShadow>
+        <icosahedronGeometry args={[0.55, 1]} />
+        <meshStandardMaterial color={canopyColor} roughness={1} />
+      </mesh>
+    </group>
+  );
+}
+
+function Ground() {
+  return (
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]} receiveShadow>
+      <planeGeometry args={[110, 90]} />
+      <meshStandardMaterial color="#5f7a44" />
+    </mesh>
+  );
+}
+
+interface SceneProps {
+  filterType: string | null;
+  filterStatus: UnitStatus | null;
+  selected: Unit | null;
+  onSelect: (unit: Unit) => void;
+  selectedFacility: Facility | null;
+  onSelectFacility: (f: Facility) => void;
+  viewMode: ViewMode;
+  showRuko: boolean;
+  selectedRuko: Ruko | null;
+  onSelectRuko: (r: Ruko) => void;
+}
+
+function Scene({
+  filterType,
+  filterStatus,
+  selected,
+  onSelect,
+  selectedFacility,
+  onSelectFacility,
+  viewMode,
+  showRuko,
+  selectedRuko,
+  onSelectRuko,
+}: SceneProps) {
+  const visibleCodes = useMemo(() => {
+    const out = new Set<string>();
+    units.forEach((u) => {
+      if (filterType && u.typeSlug !== filterType) return;
+      if (filterStatus && u.status !== filterStatus) return;
+      out.add(u.code);
+    });
+    return out;
+  }, [filterType, filterStatus]);
+
+  const trees = useMemo(() => {
+    const pts: { position: [number, number, number]; scale: number }[] = [];
+    const rand = (seed: number) => {
+      const x = Math.sin(seed * 999.7) * 43758.5453;
+      return x - Math.floor(x);
+    };
+    for (let i = 0; i < 140; i++) {
+      const angle = rand(i) * Math.PI * 2;
+      const r = 24 + rand(i + 500) * 20;
+      const x = Math.cos(angle) * r;
+      const z = Math.sin(angle) * r * 0.85 - 2;
+      pts.push({ position: [x, 0, z], scale: 0.8 + rand(i + 1000) * 0.7 });
+    }
+    return pts;
+  }, []);
+
+  return (
+    <>
+      <ambientLight intensity={0.7} />
+      <directionalLight position={[18, 24, 12]} intensity={1.2} castShadow shadow-mapSize={[2048, 2048]} />
+      <Ground />
+      {trees.map((t, i) => (
+        <Tree key={i} position={t.position} scale={t.scale} />
+      ))}
+      {units.map((unit) => {
+        if (!visibleCodes.has(unit.code)) return null;
+        return (
+          <HouseMesh key={unit.code} unit={unit} onSelect={onSelect} selected={selected?.code === unit.code} viewMode={viewMode} />
+        );
+      })}
+      {facilities.map((f) => (
+        <FacilityMesh key={f.code} facility={f} onSelect={onSelectFacility} selected={selectedFacility?.code === f.code} />
+      ))}
+      {blocks.map((block) => (
+        <BlockLabel key={block.code} code={block.code} position={[block.x, 0.05, block.z]} />
+      ))}
+      {showRuko &&
+        rukoList.map((r, i) => (
+          <RukoMesh key={r.code} ruko={r} index={i} onSelect={onSelectRuko} selected={selectedRuko?.code === r.code} />
+        ))}
+      {showRuko &&
+        ["RK1", "RK2", "RK3"].map((blockCode) => {
+          const first = rukoList.find((r) => r.block === blockCode);
+          if (!first) return null;
+          return <RukoBlockLabel key={blockCode} code={blockCode} position={[first.x, 0.05, first.z]} />;
+        })}
+      <ContactShadows position={[0, 0, 0]} opacity={0.4} scale={80} blur={1.8} far={10} />
+    </>
+  );
+}
+
+export default function SitePlan3D() {
+  const [viewMode, setViewMode] = useState<ViewMode>("status");
+  const [filterType, setFilterType] = useState<string | null>(null);
+  const [filterStatus, setFilterStatus] = useState<UnitStatus | null>(null);
+  const [selected, setSelected] = useState<Unit | null>(null);
+  const [selectedFacility, setSelectedFacility] = useState<Facility | null>(null);
+  const [selectedRuko, setSelectedRuko] = useState<Ruko | null>(null);
+  const [showRuko, setShowRuko] = useState(true);
+
+  const selectedType = selected ? houseTypes.find((t) => t.slug === selected.typeSlug) : null;
+
+  const avgProgress = useMemo(
+    () => Math.round((units.reduce((s, u) => s + u.progress, 0) / units.length) * 10) / 10,
+    []
+  );
+
+  function selectUnit(u: Unit) {
+    setSelected(u);
+    setSelectedFacility(null);
+    setSelectedRuko(null);
+  }
+  function selectFacility(f: Facility) {
+    setSelectedFacility(f);
+    setSelected(null);
+    setSelectedRuko(null);
+  }
+  function selectRuko(r: Ruko) {
+    setSelectedRuko(r);
+    setSelected(null);
+    setSelectedFacility(null);
+  }
+
+  return (
+    <div className="relative w-full h-[75vh] min-h-[560px] rounded-2xl overflow-hidden border border-black/10 bg-[#8fa476]">
+      <Canvas shadows camera={{ position: [8, 17, 24], fov: 34 }}>
+        <Suspense fallback={null}>
+          <Scene
+            filterType={filterType}
+            filterStatus={filterStatus}
+            selected={selected}
+            onSelect={selectUnit}
+            selectedFacility={selectedFacility}
+            onSelectFacility={selectFacility}
+            viewMode={viewMode}
+            showRuko={showRuko}
+            selectedRuko={selectedRuko}
+            onSelectRuko={selectRuko}
+          />
+        </Suspense>
+        <OrbitControls enablePan maxPolarAngle={Math.PI / 2.15} minDistance={6} maxDistance={70} target={[0, 0, 0]} />
+      </Canvas>
+
+      {/* View mode toggle */}
+      <div className="absolute top-4 left-4 right-4 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex gap-2 bg-white/90 rounded-full p-1 shadow">
+          <button
+            onClick={() => setViewMode("status")}
+            className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
+              viewMode === "status" ? "bg-[#1c2317] text-white" : "text-black/60"
+            }`}
+          >
+            Status Penjualan
+          </button>
+          <button
+            onClick={() => setViewMode("progress")}
+            className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
+              viewMode === "progress" ? "bg-[#1c2317] text-white" : "text-black/60"
+            }`}
+          >
+            Progres Konstruksi
+          </button>
+        </div>
+        <div className="flex items-center gap-2">
+          {viewMode === "progress" && (
+            <div className="bg-white/90 rounded-full px-4 py-1.5 text-sm shadow font-medium">Rata-rata: {avgProgress}%</div>
+          )}
+          <button
+            onClick={() => setShowRuko((v) => !v)}
+            className={`rounded-full px-3 py-1.5 text-sm font-medium shadow transition-colors ${
+              showRuko ? "bg-[#1c2748] text-white" : "bg-white/90 text-black/60"
+            }`}
+          >
+            Ruko
+          </button>
+        </div>
+      </div>
+
+      <div className="absolute top-16 left-4 flex flex-wrap gap-2 max-w-[calc(100%-2rem)]">
+        <select
+          className="rounded-full bg-white/90 text-sm px-3 py-1.5 shadow"
+          value={filterType ?? ""}
+          onChange={(e) => setFilterType(e.target.value || null)}
+        >
+          <option value="">Semua Tipe</option>
+          {houseTypes.map((t) => (
+            <option key={t.slug} value={t.slug}>
+              {t.name}
+            </option>
+          ))}
+        </select>
+        {viewMode === "status" && (
+          <select
+            className="rounded-full bg-white/90 text-sm px-3 py-1.5 shadow"
+            value={filterStatus ?? ""}
+            onChange={(e) => setFilterStatus((e.target.value || null) as UnitStatus | null)}
+          >
+            <option value="">Semua Status</option>
+            <option value="tersedia">Tersedia</option>
+            <option value="booking">Booking</option>
+            <option value="terjual">Terjual</option>
+          </select>
+        )}
+      </div>
+
+      <div className="absolute bottom-4 left-4 flex flex-wrap gap-3 bg-white/90 rounded-full px-4 py-2 text-xs shadow">
+        {viewMode === "status" ? (
+          <>
+            {(Object.keys(statusLabel) as UnitStatus[]).map((s) => (
+              <div key={s} className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: statusColor[s] }} />
+                {statusLabel[s]}
+              </div>
+            ))}
+          </>
+        ) : (
+          <>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: progressColor(0) }} />
+              Belum mulai
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: progressColor(50) }} />
+              Berjalan
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: progressColor(100) }} />
+              Selesai
+            </div>
+          </>
+        )}
+        <div className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full inline-block bg-[#3d6b8f]" />
+          Fasilitas
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full inline-block bg-[#1c2748]" />
+          Ruko
+        </div>
+      </div>
+
+      {selected && selectedType && (
+        <div className="absolute top-4 right-4 w-80 bg-white rounded-2xl shadow-xl overflow-hidden max-h-[calc(100%-2rem)] overflow-y-auto">
+          <button
+            className="absolute top-3 right-3 text-white/90 hover:text-white z-10 bg-black/30 rounded-full w-6 h-6 flex items-center justify-center"
+            onClick={() => setSelected(null)}
+            aria-label="Tutup"
+          >
+            ✕
+          </button>
+          <div className="relative aspect-[4/3]">
+            <Image src={selectedType.image} alt={selectedType.name} fill className="object-cover" />
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-3">
+              <div className="text-white/70 text-xs uppercase tracking-wide">Blok {selected.block} · {selected.code}</div>
+              <div className="text-white text-lg font-semibold">Tipe {selectedType.name}</div>
+            </div>
+          </div>
+          <div className="p-4">
+            <div className="text-sm text-black/60 mb-3">
+              {selectedType.bedrooms} KT · {selectedType.bathrooms} KM ·{" "}
+              <span className="font-medium" style={{ color: statusColor[selected.status] }}>
+                {statusLabel[selected.status]}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-sm mb-3">
+              <div>
+                <div className="text-black/50 text-xs">Luas Tanah</div>
+                <div className="font-medium">{selected.landArea} m²</div>
+              </div>
+              <div>
+                <div className="text-black/50 text-xs">Luas Bangunan</div>
+                <div className="font-medium">{selected.buildingArea} m²</div>
+              </div>
+            </div>
+            <p className="text-xs text-black/50 mb-3 line-clamp-2">{selectedType.tagline}</p>
+            <div className="mb-3">
+              <div className="flex justify-between text-xs text-black/50 mb-1">
+                <span>Progres Konstruksi</span>
+                <span className="font-medium text-black/70">{selected.progress}%</span>
+              </div>
+              <div className="h-2 rounded-full bg-black/10 overflow-hidden">
+                <div
+                  className="h-full rounded-full"
+                  style={{ width: `${selected.progress}%`, backgroundColor: progressColor(selected.progress) }}
+                />
+              </div>
+            </div>
+            <div className="text-black/50 text-xs">Harga</div>
+            <div className="text-xl font-bold text-[#1c2317] mb-3">
+              Rp {(selected.price / 1_000_000).toLocaleString("id-ID")} Jt
+            </div>
+            <div className="flex gap-2">
+              <a
+                href={`/tipe-rumah/${selectedType.slug}`}
+                className="flex-1 text-center rounded-full bg-black/5 text-[#1c2317] font-medium text-sm py-2 hover:bg-black/10"
+              >
+                Lihat Tipe
+              </a>
+              {selected.status === "tersedia" ? (
+                <a
+                  href={`https://wa.me/6285117803838?text=${encodeURIComponent(
+                    `Halo, saya tertarik dengan unit ${selected.code} tipe ${selectedType.name} di Puri Safana Cikeas.`
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 text-center rounded-full bg-[#a3d139] text-[#1c2317] font-semibold text-sm py-2 hover:bg-[#b6e34f]"
+                >
+                  Tanya Unit Ini
+                </a>
+              ) : (
+                <div className="flex-1 text-center rounded-full bg-black/5 text-black/40 text-sm py-2">Tidak tersedia</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedFacility && (
+        <div className="absolute top-4 right-4 w-72 bg-white rounded-2xl shadow-xl p-4">
+          <button
+            className="absolute top-3 right-3 text-black/40 hover:text-black"
+            onClick={() => setSelectedFacility(null)}
+            aria-label="Tutup"
+          >
+            ✕
+          </button>
+          <div className="text-xs uppercase tracking-wide text-black/50">Fasilitas Kawasan</div>
+          <div className="text-lg font-semibold text-[#1c2317] mb-2">{selectedFacility.name}</div>
+          <p className="text-sm text-black/60">{selectedFacility.desc}</p>
+        </div>
+      )}
+
+      {selectedRuko && (
+        <div className="absolute top-4 right-4 w-72 bg-white rounded-2xl shadow-xl overflow-hidden">
+          <button
+            className="absolute top-3 right-3 text-white/90 hover:text-white z-10 bg-black/30 rounded-full w-6 h-6 flex items-center justify-center"
+            onClick={() => setSelectedRuko(null)}
+            aria-label="Tutup"
+          >
+            ✕
+          </button>
+          <div className="relative aspect-[4/3]">
+            <Image src="/tipe/ruko.jpg" alt="Ruko" fill className="object-cover" />
+          </div>
+          <div className="p-4">
+            <div className="text-xs uppercase tracking-wide text-black/50">Blok {selectedRuko.block}</div>
+            <div className="text-lg font-semibold text-[#1c2317]">{selectedRuko.code}</div>
+            <div className="text-sm text-black/60 mb-3">
+              Ruko {selectedRuko.floors} Lantai ·{" "}
+              <span className="font-medium" style={{ color: statusColor[selectedRuko.status] }}>
+                {statusLabel[selectedRuko.status]}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-sm mb-3">
+              <div>
+                <div className="text-black/50 text-xs">Luas Tanah</div>
+                <div className="font-medium">{selectedRuko.landArea} m²</div>
+              </div>
+              <div>
+                <div className="text-black/50 text-xs">Luas Bangunan</div>
+                <div className="font-medium">{selectedRuko.buildingArea} m²</div>
+              </div>
+            </div>
+            <div className="text-black/50 text-xs">Harga</div>
+            <div className="text-xl font-bold text-[#1c2317] mb-3">
+              {selectedRuko.price > 0 ? `Rp ${(selectedRuko.price / 1_000_000).toLocaleString("id-ID")} Jt` : "Hubungi Kami"}
+            </div>
+            {selectedRuko.status === "tersedia" ? (
+              <a
+                href={`https://wa.me/6285117803838?text=${encodeURIComponent(
+                  `Halo, saya tertarik dengan ${selectedRuko.code} di Puri Safana Cikeas.`
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block text-center rounded-full bg-[#a3d139] text-[#1c2317] font-semibold text-sm py-2 hover:bg-[#b6e34f]"
+              >
+                Tanya Ruko Ini
+              </a>
+            ) : (
+              <div className="text-center rounded-full bg-black/5 text-black/40 text-sm py-2">Unit tidak tersedia</div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

@@ -1,0 +1,14 @@
+{
+  "[project]/src/components/SitePlan3D.tsx [app-client] (ecmascript, next/dynamic entry)": {
+    "id": "[project]/src/components/SitePlan3D.tsx [app-client] (ecmascript, next/dynamic entry)",
+    "files": [
+      "static/chunks/src_0x13j_s._.js",
+      "static/chunks/node_modules_three_build_three_core_18d0oq6.js",
+      "static/chunks/node_modules_three_build_three_module_03rsyo6.js",
+      "static/chunks/node_modules_three_build_three_module_1_wgwg8.js",
+      "static/chunks/node_modules_@react-three_fiber_dist_0fdn6jp._.js",
+      "static/chunks/node_modules_troika-three-text_dist_troika-three-text_esm_16qpk1_.js",
+      "static/chunks/node_modules_1l_54vs._.js"
+    ]
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "/_global-error/page": "app/_global-error/page.js",
+  "/_not-found/page": "app/_not-found/page.js",
+  "/developer/page": "app/developer/page.js",
+  "/favicon.ico/route": "app/favicon.ico/route.js",
+  "/kontak/page": "app/kontak/page.js",
+  "/kpr/page": "app/kpr/page.js",
+  "/overview/page": "app/overview/page.js",
+  "/page": "app/page.js",
+  "/ruko/page": "app/ruko/page.js",
+  "/site-plan/page": "app/site-plan/page.js",
+  "/tipe-rumah/[slug]/page": "app/tipe-rumah/[slug]/page.js",
+  "/tipe-rumah/page": "app/tipe-rumah/page.js"
+}

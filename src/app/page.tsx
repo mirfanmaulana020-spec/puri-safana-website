@@ -1,0 +1,144 @@
+import Link from "next/link";
+import Image from "next/image";
+import { houseTypes, projectSummary, units } from "@/lib/data";
+
+export default function Home() {
+  const available = units.filter((u) => u.status === "tersedia").length;
+  const sold = units.filter((u) => u.status === "terjual").length;
+
+  return (
+    <div>
+      {/* Hero */}
+      <section className="relative bg-[#1c2317] text-white">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-24 md:py-32">
+          <p className="text-[#a3d139] text-sm font-medium tracking-wide uppercase mb-4">
+            {projectSummary.tagline}
+          </p>
+          <h1 className="text-4xl md:text-6xl font-bold max-w-3xl leading-tight">
+            Puri Safana Cikeas
+          </h1>
+          <p className="mt-6 max-w-xl text-white/70 text-lg">{projectSummary.about}</p>
+          <div className="mt-8 flex flex-wrap gap-4">
+            <Link
+              href="/site-plan"
+              className="rounded-full bg-[#a3d139] text-[#1c2317] font-semibold px-6 py-3 hover:bg-[#b6e34f] transition-colors"
+            >
+              Jelajahi Site Plan 3D
+            </Link>
+            <Link
+              href="/tipe-rumah"
+              className="rounded-full border border-white/30 px-6 py-3 hover:bg-white/10 transition-colors"
+            >
+              Lihat Tipe Rumah
+            </Link>
+          </div>
+
+          <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-6 max-w-3xl">
+            <Stat value={projectSummary.totalArea} label="Luas Area" />
+            <Stat value={String(projectSummary.totalUnits)} label="Total Kavling" />
+            <Stat value={String(available)} label="Unit Tersedia" />
+            <Stat value={projectSummary.experience.split(" ")[0]} label="Tahun Pengalaman" />
+          </div>
+        </div>
+      </section>
+
+      {/* Tipe rumah preview */}
+      <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20">
+        <div className="flex items-end justify-between mb-8">
+          <div>
+            <h2 className="text-2xl md:text-3xl font-bold">Pilihan Tipe Rumah</h2>
+            <p className="text-black/60 mt-2">Temukan hunian yang sesuai kebutuhan keluarga Anda.</p>
+          </div>
+          <Link href="/tipe-rumah" className="text-[#557a1f] font-medium hover:underline hidden md:block">
+            Lihat semua →
+          </Link>
+        </div>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {houseTypes.map((t) => (
+            <Link
+              key={t.slug}
+              href={`/tipe-rumah/${t.slug}`}
+              className="group rounded-2xl border border-black/10 bg-white overflow-hidden hover:shadow-lg transition-shadow"
+            >
+              <div className="relative aspect-[4/3] overflow-hidden bg-[#eef1e6]">
+                <Image src={t.image} alt={t.name} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
+              </div>
+              <div className="p-6">
+              <div className="text-xs uppercase tracking-wide text-[#557a1f] font-medium">
+                {t.totalUnits} unit
+              </div>
+              <div className="text-xl font-semibold mt-1 group-hover:text-[#557a1f]">{t.name}</div>
+              <p className="text-sm text-black/60 mt-1">{t.tagline}</p>
+              <div className="mt-4 flex gap-4 text-sm text-black/70">
+                <span>LT {t.landAreaMin}m²</span>
+                <span>LB {t.buildingArea}m²</span>
+                <span>{t.bedrooms} KT</span>
+              </div>
+              <div className="mt-4 text-lg font-bold">
+                Rp {(t.priceFrom / 1_000_000).toLocaleString("id-ID")} Jt
+              </div>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      {/* Site plan CTA */}
+      <section className="bg-[#eef1e6]">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20 grid md:grid-cols-2 gap-12 items-center">
+          <div>
+            <h2 className="text-2xl md:text-3xl font-bold">Site Plan Interaktif 3D</h2>
+            <p className="text-black/60 mt-4">
+              Jelajahi seluruh kawasan Puri Safana Cikeas secara interaktif. Klik setiap
+              unit untuk melihat detail tipe, luas, dan status ketersediaan secara
+              langsung — {sold} unit sudah terjual, {available} unit masih tersedia untuk Anda.
+            </p>
+            <Link
+              href="/site-plan"
+              className="mt-6 inline-block rounded-full bg-[#1c2317] text-white font-semibold px-6 py-3 hover:bg-[#2a3423] transition-colors"
+            >
+              Buka Site Plan →
+            </Link>
+          </div>
+          <Link href="/site-plan" className="group relative block rounded-2xl overflow-hidden aspect-video">
+            <Image
+              src="/tipe/aruna.jpg"
+              alt="Preview Site Plan 3D"
+              fill
+              className="object-cover group-hover:scale-105 transition-transform duration-300"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#1c2317]/90 via-[#1c2317]/30 to-transparent" />
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-6">
+              <span className="rounded-full bg-white/15 backdrop-blur-sm text-white text-xs uppercase tracking-wide px-4 py-1.5 mb-3">
+                Interaktif · Real-time
+              </span>
+              <span className="text-white text-xl font-semibold">Jelajahi dalam 3D</span>
+            </div>
+          </Link>
+        </div>
+      </section>
+
+      {/* Facilities */}
+      <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20">
+        <h2 className="text-2xl md:text-3xl font-bold mb-8">Fasilitas Kawasan</h2>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {projectSummary.facilities.map((f) => (
+            <div key={f.name} className="rounded-2xl border border-black/10 p-6">
+              <div className="font-semibold">{f.name}</div>
+              <p className="text-sm text-black/60 mt-1">{f.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function Stat({ value, label }: { value: string; label: string }) {
+  return (
+    <div>
+      <div className="text-2xl md:text-3xl font-bold text-[#a3d139]">{value}</div>
+      <div className="text-sm text-white/60 mt-1">{label}</div>
+    </div>
+  );
+}

@@ -1,0 +1,31 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/tipe-rumah/layout,_N_T_/tipe-rumah/[slug]/layout,_N_T_/tipe-rumah/[slug]/page,_N_T_/tipe-rumah/asvara"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/tipe-rumah/$d$slug/__PAGE__"
+  ],
+  "prefetchHints": {
+    "hints": 64,
+    "slots": {
+      "children": {
+        "hints": 96,
+        "slots": {
+          "children": {
+            "hints": 96,
+            "slots": {
+              "children": {
+                "hints": 160,
+                "slots": null
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

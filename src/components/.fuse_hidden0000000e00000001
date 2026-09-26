@@ -1,0 +1,273 @@
+"use client";
+
+import { Suspense, useMemo, useState } from "react";
+import { Canvas, ThreeEvent } from "@react-three/fiber";
+import { OrbitControls, Text, Environment, ContactShadows } from "@react-three/drei";
+import {
+  blocks,
+  units,
+  houseTypes,
+  rukoList,
+  statusColor,
+  statusLabel,
+  type Unit,
+  type UnitStatus,
+} from "@/lib/data";
+
+const UNIT_SIZE = 1.6;
+const GAP = 0.25;
+const STEP = UNIT_SIZE + GAP;
+
+interface HouseMeshProps {
+  unit: Unit;
+  position: [number, number, number];
+  onSelect: (unit: Unit) => void;
+  selected: boolean;
+}
+
+function HouseMesh({ unit, position, onSelect, selected }: HouseMeshProps) {
+  const color = statusColor[unit.status];
+  const height = 0.9;
+
+  const handleClick = (e: ThreeEvent<MouseEvent>) => {
+    e.stopPropagation();
+    onSelect(unit);
+  };
+
+  return (
+    <group position={position}>
+      <mesh
+        position={[0, height / 2, 0]}
+        onClick={handleClick}
+        onPointerOver={(e) => {
+          e.stopPropagation();
+          document.body.style.cursor = "pointer";
+        }}
+        onPointerOut={() => {
+          document.body.style.cursor = "default";
+        }}
+        castShadow
+        receiveShadow
+      >
+        <boxGeometry args={[UNIT_SIZE * 0.9, height, UNIT_SIZE * 0.9]} />
+        <meshStandardMaterial
+          color={color}
+          emissive={selected ? "#a3d139" : "#000000"}
+          emissiveIntensity={selected ? 0.5 : 0}
+        />
+      </mesh>
+      {/* roof */}
+      <mesh position={[0, height + 0.18, 0]} rotation={[0, Math.PI / 4, 0]} castShadow>
+        <coneGeometry args={[UNIT_SIZE * 0.68, 0.36, 4]} />
+        <meshStandardMaterial color="#5c4a3a" />
+      </mesh>
+    </group>
+  );
+}
+
+function BlockLabel({ code, position }: { code: string; position: [number, number, number] }) {
+  return (
+    <Text
+      position={position}
+      fontSize={0.55}
+      color="#1c2317"
+      anchorX="center"
+      anchorY="bottom"
+      outlineWidth={0.02}
+      outlineColor="#ffffff"
+    >
+      {code}
+    </Text>
+  );
+}
+
+function Ground() {
+  return (
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]} receiveShadow>
+      <planeGeometry args={[80, 60]} />
+      <meshStandardMaterial color="#33422c" />
+    </mesh>
+  );
+}
+
+interface SceneProps {
+  filterType: string | null;
+  filterStatus: UnitStatus | null;
+  selected: Unit | null;
+  onSelect: (unit: Unit) => void;
+}
+
+function Scene({ filterType, filterStatus, selected, onSelect }: SceneProps) {
+  const items = useMemo(() => {
+    const out: { unit: Unit; position: [number, number, number] }[] = [];
+    blocks.forEach((block) => {
+      const blockUnits = units.filter((u) => u.block === block.code);
+      blockUnits.forEach((unit) => {
+        const x = block.x + unit.gridX * STEP;
+        const z = block.z + unit.gridZ * STEP;
+        out.push({ unit, position: [x, 0, z] });
+      });
+    });
+    return out;
+  }, []);
+
+  const visible = items.filter(({ unit }) => {
+    if (filterType && unit.typeSlug !== filterType) return false;
+    if (filterStatus && unit.status !== filterStatus) return false;
+    return true;
+  });
+
+  return (
+    <>
+      <ambientLight intensity={0.65} />
+      <directionalLight
+        position={[15, 20, 10]}
+        intensity={1.1}
+        castShadow
+        shadow-mapSize={[2048, 2048]}
+      />
+      <Ground />
+      {items.map(({ unit, position }) => {
+        const isVisible = visible.some((v) => v.unit.code === unit.code);
+        if (!isVisible) return null;
+        return (
+          <HouseMesh
+            key={unit.code}
+            unit={unit}
+            position={position}
+            onSelect={onSelect}
+            selected={selected?.code === unit.code}
+          />
+        );
+      })}
+      {blocks.map((block) => (
+        <BlockLabel key={block.code} code={block.code} position={[block.x - 0.4, 0.05, block.z - 0.6]} />
+      ))}
+      <ContactShadows position={[0, 0, 0]} opacity={0.35} scale={60} blur={2} far={10} />
+    </>
+  );
+}
+
+export default function SitePlan3D() {
+  const [filterType, setFilterType] = useState<string | null>(null);
+  const [filterStatus, setFilterStatus] = useState<UnitStatus | null>(null);
+  const [selected, setSelected] = useState<Unit | null>(null);
+
+  const selectedType = selected ? houseTypes.find((t) => t.slug === selected.typeSlug) : null;
+
+  return (
+    <div className="relative w-full h-[70vh] min-h-[520px] rounded-2xl overflow-hidden border border-black/10 bg-[#2a3423]">
+      <Canvas shadows camera={{ position: [0, 18, 24], fov: 45 }}>
+        <Suspense fallback={null}>
+          <Scene
+            filterType={filterType}
+            filterStatus={filterStatus}
+            selected={selected}
+            onSelect={setSelected}
+          />
+        </Suspense>
+        <OrbitControls
+          enablePan
+          maxPolarAngle={Math.PI / 2.2}
+          minDistance={8}
+          maxDistance={45}
+        />
+      </Canvas>
+
+      {/* Filters */}
+      <div className="absolute top-4 left-4 flex flex-wrap gap-2 max-w-[calc(100%-2rem)]">
+        <select
+          className="rounded-full bg-white/90 text-sm px-3 py-1.5 shadow"
+          value={filterType ?? ""}
+          onChange={(e) => setFilterType(e.target.value || null)}
+        >
+          <option value="">Semua Tipe</option>
+          {houseTypes.map((t) => (
+            <option key={t.slug} value={t.slug}>
+              {t.name}
+            </option>
+          ))}
+        </select>
+        <select
+          className="rounded-full bg-white/90 text-sm px-3 py-1.5 shadow"
+          value={filterStatus ?? ""}
+          onChange={(e) => setFilterStatus((e.target.value || null) as UnitStatus | null)}
+        >
+          <option value="">Semua Status</option>
+          <option value="tersedia">Tersedia</option>
+          <option value="booking">Booking</option>
+          <option value="terjual">Terjual</option>
+        </select>
+      </div>
+
+      {/* Legend */}
+      <div className="absolute bottom-4 left-4 flex gap-3 bg-white/90 rounded-full px-4 py-2 text-xs shadow">
+        {(Object.keys(statusLabel) as UnitStatus[]).map((s) => (
+          <div key={s} className="flex items-center gap-1.5">
+            <span
+              className="w-2.5 h-2.5 rounded-full inline-block"
+              style={{ backgroundColor: statusColor[s] }}
+            />
+            {statusLabel[s]}
+          </div>
+        ))}
+      </div>
+
+      {/* Selected unit panel */}
+      {selected && selectedType && (
+        <div className="absolute top-4 right-4 w-72 bg-white rounded-2xl shadow-xl p-4">
+          <button
+            className="absolute top-3 right-3 text-black/40 hover:text-black"
+            onClick={() => setSelected(null)}
+            aria-label="Tutup"
+          >
+            ✕
+          </button>
+          <div className="text-xs uppercase tracking-wide text-black/50">
+            Blok {selected.block}
+          </div>
+          <div className="text-lg font-semibold text-[#1c2317]">{selected.code}</div>
+          <div className="text-sm text-black/60 mb-3">
+            Tipe {selectedType.name} ·{" "}
+            <span
+              className="font-medium"
+              style={{ color: statusColor[selected.status] }}
+            >
+              {statusLabel[selected.status]}
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-2 text-sm mb-3">
+            <div>
+              <div className="text-black/50 text-xs">Luas Tanah</div>
+              <div className="font-medium">{selectedType.landArea} m²</div>
+            </div>
+            <div>
+              <div className="text-black/50 text-xs">Luas Bangunan</div>
+              <div className="font-medium">{selectedType.buildingArea} m²</div>
+            </div>
+          </div>
+          <div className="text-black/50 text-xs">Harga Mulai</div>
+          <div className="text-xl font-bold text-[#1c2317] mb-3">
+            Rp {(selected.price / 1_000_000).toLocaleString("id-ID")} Jt
+          </div>
+          {selected.status === "tersedia" ? (
+            <a
+              href={`https://wa.me/6285117803838?text=${encodeURIComponent(
+                `Halo, saya tertarik dengan unit ${selected.code} tipe ${selectedType.name} di Puri Safana Cikeas.`
+              )}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block text-center rounded-full bg-[#a3d139] text-[#1c2317] font-semibold text-sm py-2 hover:bg-[#b6e34f]"
+            >
+              Tanya Unit Ini
+            </a>
+          ) : (
+            <div className="text-center rounded-full bg-black/5 text-black/40 text-sm py-2">
+              Unit tidak tersedia
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

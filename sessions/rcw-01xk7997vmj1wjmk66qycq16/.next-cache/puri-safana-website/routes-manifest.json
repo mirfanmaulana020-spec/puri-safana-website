@@ -1,0 +1,120 @@
+{
+  "version": 3,
+  "pages404": true,
+  "appType": "app",
+  "caseSensitive": false,
+  "basePath": "",
+  "redirects": [
+    {
+      "source": "/:path+/",
+      "destination": "/:path+",
+      "internal": true,
+      "priority": true,
+      "statusCode": 308,
+      "regex": "^(?:/((?:[^/]+?)(?:/(?:[^/]+?))*))/$"
+    }
+  ],
+  "headers": [],
+  "onMatchHeaders": [],
+  "rewrites": {
+    "beforeFiles": [],
+    "afterFiles": [],
+    "fallback": []
+  },
+  "dynamicRoutes": [
+    {
+      "page": "/tipe-rumah/[slug]",
+      "regex": "^/tipe\\-rumah/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPslug": "nxtPslug"
+      },
+      "namedRegex": "^/tipe\\-rumah/(?<nxtPslug>[^/]+?)(?:/)?$"
+    }
+  ],
+  "staticRoutes": [
+    {
+      "page": "/",
+      "regex": "^/(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/(?:/)?$"
+    },
+    {
+      "page": "/_global-error",
+      "regex": "^/_global\\-error(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/_global\\-error(?:/)?$"
+    },
+    {
+      "page": "/_not-found",
+      "regex": "^/_not\\-found(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/_not\\-found(?:/)?$"
+    },
+    {
+      "page": "/developer",
+      "regex": "^/developer(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/developer(?:/)?$"
+    },
+    {
+      "page": "/favicon.ico",
+      "regex": "^/favicon\\.ico(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/favicon\\.ico(?:/)?$"
+    },
+    {
+      "page": "/kontak",
+      "regex": "^/kontak(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/kontak(?:/)?$"
+    },
+    {
+      "page": "/kpr",
+      "regex": "^/kpr(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/kpr(?:/)?$"
+    },
+    {
+      "page": "/overview",
+      "regex": "^/overview(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/overview(?:/)?$"
+    },
+    {
+      "page": "/ruko",
+      "regex": "^/ruko(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/ruko(?:/)?$"
+    },
+    {
+      "page": "/site-plan",
+      "regex": "^/site\\-plan(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/site\\-plan(?:/)?$"
+    },
+    {
+      "page": "/tipe-rumah",
+      "regex": "^/tipe\\-rumah(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/tipe\\-rumah(?:/)?$"
+    }
+  ],
+  "dataRoutes": [],
+  "rsc": {
+    "header": "rsc",
+    "varyHeader": "rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch",
+    "prefetchHeader": "next-router-prefetch",
+    "didPostponeHeader": "x-nextjs-postponed",
+    "contentTypeHeader": "text/x-component",
+    "suffix": ".rsc",
+    "prefetchSegmentHeader": "next-router-segment-prefetch",
+    "prefetchSegmentSuffix": ".segment.rsc",
+    "prefetchSegmentDirSuffix": ".segments",
+    "clientParamParsing": false,
+    "dynamicRSCPrerender": false
+  },
+  "rewriteHeaders": {
+    "pathHeader": "x-nextjs-rewritten-path",
+    "queryHeader": "x-nextjs-rewritten-query"
+  }
+}
