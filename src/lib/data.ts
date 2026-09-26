@@ -13,12 +13,16 @@ export interface HouseType {
   totalUnits: number;
   description: string;
   facilities: string[];
+  /** Denah / layout lantai rumah */
+  layoutImages: string[];
+  /** Foto interior unit contoh/showunit */
+  interiorImages: string[];
 }
 
 export const houseTypes: HouseType[] = [
   {
     slug: "aruna",
-    image: "/tipe/aruna.jpg",
+    image: "/tipe/aruna/hero.jpg",
     name: "Aruna",
     tagline: "Tipe unggulan Puri Safana Cikeas",
     buildingArea: 73,
@@ -29,10 +33,18 @@ export const houseTypes: HouseType[] = [
     totalUnits: 89,
     description: "Aruna adalah tipe paling diminati di Puri Safana Cikeas, dengan tata ruang premium dan carport luas.",
     facilities: ["3 Kamar Tidur", "2 Kamar Mandi", "Carport", "Taman Belakang"],
+    layoutImages: ["/tipe/aruna/layout-1.jpg", "/tipe/aruna/layout-2.jpg"],
+    interiorImages: [
+      "/tipe/aruna/interior-1.jpg",
+      "/tipe/aruna/interior-2.jpg",
+      "/tipe/aruna/interior-3.jpg",
+      "/tipe/aruna/interior-4.jpg",
+      "/tipe/aruna/interior-5.jpg",
+    ],
   },
   {
     slug: "asvara",
-    image: "/tipe/asvara.jpg",
+    image: "/tipe/asvara/hero.jpg",
     name: "Asvara",
     tagline: "Hunian kompak untuk keluarga muda",
     buildingArea: 48,
@@ -43,10 +55,18 @@ export const houseTypes: HouseType[] = [
     totalUnits: 65,
     description: "Tipe Asvara dirancang untuk keluarga muda yang mengutamakan efisiensi ruang tanpa mengorbankan kenyamanan.",
     facilities: ["2 Kamar Tidur", "1 Kamar Mandi", "Carport", "Taman Depan"],
+    layoutImages: ["/tipe/asvara/layout-1.jpg", "/tipe/asvara/layout-2.jpg"],
+    interiorImages: [
+      "/tipe/asvara/interior-1.jpg",
+      "/tipe/asvara/interior-2.jpg",
+      "/tipe/asvara/interior-3.jpg",
+      "/tipe/asvara/interior-4.jpg",
+      "/tipe/asvara/interior-5.jpg",
+    ],
   },
   {
     slug: "adara",
-    image: "/tipe/adara.jpg",
+    image: "/tipe/adara/hero.jpg",
     name: "Adara",
     tagline: "Desain modern untuk keluarga berkembang",
     buildingArea: 52,
@@ -57,10 +77,18 @@ export const houseTypes: HouseType[] = [
     totalUnits: 38,
     description: "Adara hadir dengan desain modern dan tata ruang fleksibel, cocok untuk keluarga yang terus berkembang.",
     facilities: ["2-3 Kamar Tidur", "2 Kamar Mandi", "Carport", "Taman"],
+    layoutImages: ["/tipe/adara/layout-1.jpg", "/tipe/adara/layout-2.jpg"],
+    interiorImages: [
+      "/tipe/adara/interior-1.jpg",
+      "/tipe/adara/interior-2.jpg",
+      "/tipe/adara/interior-3.jpg",
+      "/tipe/adara/interior-4.jpg",
+      "/tipe/adara/interior-5.jpg",
+    ],
   },
   {
     slug: "ansara",
-    image: "/tipe/ansara.jpg",
+    image: "/tipe/ansara/hero.jpg",
     name: "Ansara",
     tagline: "Hunian efisien harga terjangkau",
     buildingArea: 36,
@@ -71,6 +99,13 @@ export const houseTypes: HouseType[] = [
     totalUnits: 35,
     description: "Ansara adalah pilihan hunian paling terjangkau di Puri Safana Cikeas tanpa mengorbankan kualitas bangunan.",
     facilities: ["2 Kamar Tidur", "1 Kamar Mandi", "Carport"],
+    layoutImages: ["/tipe/ansara/layout-1.jpg"],
+    interiorImages: [
+      "/tipe/ansara/interior-1.jpg",
+      "/tipe/ansara/interior-2.jpg",
+      "/tipe/ansara/interior-3.jpg",
+      "/tipe/ansara/interior-4.jpg",
+    ],
   },
 ];
 
