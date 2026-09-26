@@ -55,6 +55,48 @@ export default async function TipeRumahDetailPage({
           ))}
         </ul>
 
+        {type.layoutImages.length > 0 && (
+          <>
+            <h2 className="text-xl font-semibold mb-4">Denah / Layout</h2>
+            <div className="grid sm:grid-cols-2 gap-6 mb-10">
+              {type.layoutImages.map((src, i) => (
+                <div
+                  key={src}
+                  className="relative aspect-[4/3] rounded-xl overflow-hidden bg-[#eef1e6] border border-black/10"
+                >
+                  <Image
+                    src={src}
+                    alt={`Denah ${type.name} ${i + 1}`}
+                    fill
+                    className="object-contain"
+                  />
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {type.interiorImages.length > 0 && (
+          <>
+            <h2 className="text-xl font-semibold mb-4">Interior</h2>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-10">
+              {type.interiorImages.map((src, i) => (
+                <div
+                  key={src}
+                  className="relative aspect-[4/3] rounded-xl overflow-hidden bg-[#eef1e6]"
+                >
+                  <Image
+                    src={src}
+                    alt={`Interior ${type.name} ${i + 1}`}
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
         <div className="flex flex-wrap gap-4">
           <Link
             href={`/site-plan`}
