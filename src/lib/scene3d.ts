@@ -9,6 +9,10 @@ import { progresWarna, STATUS_WARNA } from './warna';
 export type UnitPeta = {
   kode: string; blok: string; x: number; z: number;
   status: string; progress: number; tipe: string; jenis: string;
+  /** Rotasi asli (derajat) dari data site plan sumber — dipakai untuk arah
+   *  rumah/kavling supaya presisi (lurus mengikuti jalan) tanpa bergantung
+   *  ke heuristik tetangga terdekat yang bisa keliru di ujung baris. */
+  rot?: number;
 };
 export type PetakKosong = { x: number; z: number };
 export type LabelBlok = { name: string; x: number; z: number };
@@ -101,6 +105,9 @@ export function buatMasterplan(
     for (const [a, b] of semuaAsli) { const d = Math.hypot(a - x, b - z); if (d > 0.5 && d < bd) { bd = d; best = [a - x, b - z]; } }
     return best ? -Math.atan2(best[1], best[0]) : 0;
   }
+  // Pakai rotasi asli dari data kalau tersedia (akurat, dari site plan sumber);
+  // arahDeret cuma fallback untuk petak kosong yang tidak punya nilai rot.
+  const arahUnit = (u: UnitPeta) => u.rot !== undefined ? (u.rot * Math.PI / 180) : arahDeret(u.x, u.z);
 
   // ---------- batas kawasan (closing morfologi) ----------
   const MARG = 150, CS = 2;
@@ -174,7 +181,7 @@ export function buatMasterplan(
   const LOT_W = 10.2, LOT_D = 12.4;
   type Petak = { x: number; z: number; a: number; u: UnitPeta | null };
   const petak: Petak[] = [
-    ...data.units.map((u): Petak => { const [x, z] = P(u.x, u.z); return { x, z, a: arahDeret(u.x, u.z), u }; }),
+    ...data.units.map((u): Petak => { const [x, z] = P(u.x, u.z); return { x, z, a: arahUnit(u), u }; }),
     ...data.kosong.map((e): Petak => { const [x, z] = P(e.x, e.z); return { x, z, a: arahDeret(e.x, e.z), u: null }; }),
   ];
   const kotakLahan = (x: number, z: number, a: number, w: number, d: number, dz: number, isi: string) => {
@@ -329,7 +336,7 @@ export function buatMasterplan(
     const grp = new THREE.Group();
     const [x, z] = P(u.x, u.z);
     grp.position.set(x, .02, z);
-    grp.rotation.y = hadap(u.x, u.z, arahDeret(u.x, u.z));
+    grp.rotation.y = hadap(u.x, u.z, arahUnit(u));
     let nn = 1e9;
     for (const [px, pz] of semuaAsli) { const d = Math.hypot(px - u.x, pz - u.z); if (d > .5 && d < nn) nn = d; }
     const lebar = u.jenis === 'Ruko' ? 1 : Math.max(1, Math.min(1.6, (nn * .99) / (3.2 * HS)));

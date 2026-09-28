@@ -67,6 +67,7 @@ export function buildDataPeta(): DataPeta {
       progress: u.progress,
       tipe: u.typeSlug,
       jenis: "Rumah",
+      rot: u.rot,
     });
   }
   for (const r of rukoList) {
@@ -79,6 +80,7 @@ export function buildDataPeta(): DataPeta {
       progress: r.status === "terjual" ? 100 : 0,
       tipe: "ruko",
       jenis: "Ruko",
+      rot: r.rot,
     });
   }
 
