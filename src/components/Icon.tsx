@@ -23,6 +23,7 @@ const P: Record<string, string> = {
   key: 'M8 15a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM11 11h10M18 11v3.5M21 11v2.5',
   shield: 'M12 3 4.5 6.2v5.4c0 4.4 3.1 8.2 7.5 9.4 4.4-1.2 7.5-5 7.5-9.4V6.2ZM9.5 11.5a2.5 2.5 0 1 0 5 0 2.5 2.5 0 0 0-5 0M8 17c.8-1.6 2.3-2.5 4-2.5s3.2.9 4 2.5',
   refresh: 'M20 12a8 8 0 1 1-2.6-5.9M20 4v5h-5',
+  move: 'M5 9 2 12l3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20',
 };
 export default function Icon({ n, s = 17, w = 1.6 }: { n: string; s?: number; w?: number }) {
   return (
