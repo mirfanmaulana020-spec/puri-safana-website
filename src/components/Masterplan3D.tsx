@@ -52,6 +52,8 @@ export default function Masterplan3D() {
   const [siap, setSiap] = useState(false);
   const [gagal, setGagal] = useState<string | null>(null);
   const [mode, setMode] = useState<Mode>("status");
+  const [modeSeret, setModeSeret] = useState<"putar" | "geser">("putar");
+  const modeSeretRef = useRef<"putar" | "geser">("putar");
   const [kode, setKode] = useState<string | null>(null);
   const [pin, setPin] = useState<{ blok: [string, number, number][]; unit: [number, number] | null }>({
     blok: [],
@@ -90,6 +92,7 @@ export default function Masterplan3D() {
           });
           setPin((prev) => ({ blok: blokLabels, unit: prev.unit }));
         });
+        mp.modeSeret(modeSeretRef.current);
         mp.gambar();
         if (mini.current) gambarMinimap(mp, mini.current);
         setSiap(true);
@@ -135,6 +138,7 @@ export default function Masterplan3D() {
         });
         setPin({ blok: blokLabels, unit: null });
       });
+      mp.modeSeret(modeSeretRef.current);
       mp.gambar();
       if (mini.current) gambarMinimap(mp, mini.current);
     })();
@@ -147,6 +151,12 @@ export default function Masterplan3D() {
   const pilihUnit = useCallback((k: string | null) => {
     setKode(k);
     peta.current?.pilih(k);
+  }, []);
+
+  const gantiModeSeret = useCallback((m: "putar" | "geser") => {
+    setModeSeret(m);
+    modeSeretRef.current = m;
+    peta.current?.modeSeret(m);
   }, []);
 
   // Cegah label numpuk/tabrakan saat banyak pin berdekatan (zoom jauh):
@@ -327,6 +337,20 @@ export default function Masterplan3D() {
       </div>
 
       <div className="mp-kontrol mp-kaca">
+        <button
+          className={modeSeret === "putar" ? "on" : ""}
+          onClick={() => gantiModeSeret("putar")}
+          aria-label="Mode putar"
+        >
+          <Icon n="refresh" s={15} /> <span>Putar</span>
+        </button>
+        <button
+          className={modeSeret === "geser" ? "on" : ""}
+          onClick={() => gantiModeSeret("geser")}
+          aria-label="Mode geser"
+        >
+          <Icon n="move" s={15} /> <span>Geser</span>
+        </button>
         <button onClick={() => peta.current?.zoom(0.85)} aria-label="Perbesar">
           <Icon n="plus" s={15} />
         </button>
